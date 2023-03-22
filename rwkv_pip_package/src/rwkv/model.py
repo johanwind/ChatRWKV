@@ -223,11 +223,6 @@ class RWKV(MyModule):
                     if 'key.weight' in x or 'value.weight' in x or 'receptance.weight' in x or 'output.weight' in x or 'head.weight' in x:
                         w[x] = w[x].t()
 
-                    if 'head.weight' in x:
-                      self.vocab_pad = (-w[x].shape[1])%64
-                      if self.vocab_pad:
-                        w[x] = F.pad(input=w[x], pad=(0,self.vocab_pad), mode='constant', value=0)
-
                     if '.time_decay' in x: # need fp32 for this
                         w[x] = -torch.exp(w[x].float())
                     elif '.time_first' in x: # need fp32 for this
@@ -319,6 +314,13 @@ class RWKV(MyModule):
                 prxxx(f'Converted and saved. Now this will exit.')
                 exit(0)
             
+            # Add vocabulary padding
+            self.vocab_pad = (-w['head.weight'].shape[1])%64
+            if self.vocab_pad:
+                for x in w.keys():
+                    if x in ['head.weight', 'head.weight_rx', 'head.weight_mx']:
+                        w[x] = F.pad(input=w[x], pad=(0,self.vocab_pad), mode='constant', value=0)
+
             gc.collect()
             if 'cuda' in args.strategy_string:
                 torch.cuda.empty_cache()
